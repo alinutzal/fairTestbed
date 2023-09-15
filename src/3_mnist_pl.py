@@ -10,16 +10,20 @@ import torchmetrics
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 
+import yaml
+
 #import torch.profiler as profiler 
 from torch.profiler import tensorboard_trace_handler
 
-PATH_DATASETS = os.environ.get("PATH_DATASETS","/users/PLS0129/ysu0053/CSCI4852_6852_F23_DL/data")
-BATCH_SIZE = 1024 if torch.cuda.is_available() else 64
+PATH_DATASETS = os.environ.get("PATH_DATASETS","/fs/scratch/PLS0144/alina/datasets")
+#BATCH_SIZE = 512 if torch.cuda.is_available() else 64
+
 
 # setting device on GPU if available, else CPU
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device:', device)
-print('Number of GPUs:',torch.cuda.device_count())
+num_devices = torch.cuda.device_count()
+print('Number of GPUs:',num_devices)
 print()
 
 #Additional Info when using cuda
@@ -31,12 +35,13 @@ if device.type == 'cuda':
     
 # Define the Lightning module
 class MNISTLightning(pl.LightningModule):
-    def __init__(self, data_dir=PATH_DATASETS, hidden_size=64, learning_rate=2e-4):
+    def __init__(self, data_dir=PATH_DATASETS, hidden_size=64, batch_size=512, learning_rate=2e-4):
         super().__init__()
 
         # Set our init args as class attributes
         self.data_dir = data_dir
         self.hidden_size = hidden_size
+        self.batch_size = batch_size
         self.learning_rate = learning_rate
 
         # Hardcode some dataset specific attributes
@@ -103,7 +108,7 @@ class MNISTLightning(pl.LightningModule):
         self.log("test_acc", self.test_accuracy, prog_bar=True,sync_dist=True)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate*2)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate*num_devices)
         return optimizer
 
     ####################
@@ -126,18 +131,19 @@ class MNISTLightning(pl.LightningModule):
             self.mnist_test = datasets.MNIST(self.data_dir, train=False, transform=self.transform)
 
     def train_dataloader(self):
-        return DataLoader(self.mnist_train, batch_size=BATCH_SIZE, num_workers=4)
+        return DataLoader(self.mnist_train, batch_size=self.batch_size, num_workers=4)
 
     def val_dataloader(self):
-        return DataLoader(self.mnist_val, batch_size=BATCH_SIZE, num_workers=4)
+        return DataLoader(self.mnist_val, batch_size=self.batch_size, num_workers=4)
 
     def test_dataloader(self):
-        return DataLoader(self.mnist_test, batch_size=BATCH_SIZE, num_workers=4)
+        return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=4)
 
-
+with open('config/mnist.yaml', 'r') as file:
+    param = yaml.safe_load(file)
 
 # Init our model
-mnist_model = MNISTLightning()
+mnist_model = MNISTLightning(batch_size=param['batch_size'], learning_rate=param['learning_rate'])
 
 # Initialize wandb
 wandb.init(project='mnist_mlp')
@@ -147,8 +153,8 @@ settings=wandb.Settings(silent="True")
 wandb_logger = WandbLogger()
 
 # Initialize a trainer
-trainer = pl.Trainer(accelerator="gpu", devices=2, strategy="ddp",max_epochs=100, logger=wandb_logger) 
-# Train the model ⚡
+trainer = pl.Trainer(accelerator="gpu", devices=num_devices, strategy="ddp",max_epochs=param['max_epochs'], logger=wandb_logger) 
+# Train the model 
 trainer.fit(mnist_model)
 
 #Testing

@@ -1,0 +1,3 @@
+batch_size: 512
+max_epochs: 100
+learning_rate: 0.001
