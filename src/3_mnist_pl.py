@@ -1,5 +1,7 @@
 import os
-import lightning.pytorch as pl
+#import lightning.pytorch as pl
+from pytorch_lightning import LightningModule
+from pytorch_lightning import Trainer
 
 import torch
 import torch.nn as nn
@@ -34,7 +36,7 @@ if device.type == 'cuda':
     print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
     
 # Define the Lightning module
-class MNISTLightning(pl.LightningModule):
+class MNISTLightning(LightningModule):
     def __init__(self, data_dir=PATH_DATASETS, hidden_size=64, batch_size=512, learning_rate=2e-4):
         super().__init__()
 
@@ -153,7 +155,7 @@ settings=wandb.Settings(silent="True")
 wandb_logger = WandbLogger()
 
 # Initialize a trainer
-trainer = pl.Trainer(accelerator="gpu", devices=num_devices, strategy="ddp",max_epochs=param['max_epochs'], logger=wandb_logger) 
+trainer = Trainer(accelerator="gpu", devices=num_devices, strategy="ddp",max_epochs=param['max_epochs'], logger=wandb_logger) 
 # Train the model 
 trainer.fit(mnist_model)
 
