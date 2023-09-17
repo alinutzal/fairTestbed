@@ -1,1 +1,1 @@
-sbatch submit.sh
+sbatch ./scripts/submit.sh

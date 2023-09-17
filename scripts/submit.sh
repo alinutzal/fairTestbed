@@ -1,17 +1,19 @@
 #!/bin/sh
 
-#SBATCH --gpus-per-node=1
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=2
 #SBATCH --account=pls0144
 #SBATCH --time=05:00:00
-#SBATCH --ntasks=1 
-#SBATCH --cpus-per-task 20
+#SBATCH --cpus-per-task 4
 ##SBATCH --constraint=48core 
 #SBATCH -J mnist
 #SBATCH -o alazar-%j.out
 #SBATCH --mail-type=END
 #SBATCH --mail-user=alazar@ysu.edu
 
-module load miniconda3
+export NCCL_NET_GDR_LEVEL=PHB
+
 module load cuda/11.8.0
 source activate torch
-srun --gpu_cmode=exclusive NCCL_P2P_LEVEL=NVL python 3_mnist_pl.py
+srun --ntasks-per-node=2 --gpu_cmode=exclusive python src/3_mnist_pl.py
+#--ntasks-per-node=1
