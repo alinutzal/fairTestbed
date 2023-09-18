@@ -162,4 +162,5 @@ data/
 lightning_logs/
 wandb/
 .vscode/
-```
+
+*.out
